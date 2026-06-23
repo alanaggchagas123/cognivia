@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cognivia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d14;
+    --surface: #14141f;
+    --surface2: #1a1a2e;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.15);
+    --text: #f0f0f8;
+    --muted: #8888aa;
+    --math: #00e5c4;
+    --math-dim: rgba(0,229,196,0.12);
+    --logic: #7c6eff;
+    --logic-dim: rgba(124,110,255,0.12);
+    --seq: #ffb347;
+    --seq-dim: rgba(255,179,71,0.12);
+    --success: #00e5a0;
+    --error: #ff5c6a;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── PARTICLES ── */
+  #canvas-bg {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+    opacity: 0.35;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 760px;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-bottom: 0.5rem;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--math), var(--logic));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--math) 0%, var(--logic) 60%, var(--seq) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--border-hover); }
+  .stat-cat {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .stat-cat.math { color: var(--math); }
+  .stat-cat.logic { color: var(--logic); }
+  .stat-cat.seq { color: var(--seq); }
+  .stat-level {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-pts {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .level-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 99px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .level-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(.25,.8,.25,1);
+  }
+  .math .level-fill { background: var(--math); }
+  .logic .level-fill { background: var(--logic); }
+  .seq .level-fill { background: var(--seq); }
+
+  /* ── GAME PANEL ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* ── CASA INPUT ── */
+  .casa-row {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .input-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .input-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    padding: 0.7rem 1rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input:focus {
+    border-color: var(--logic);
+    box-shadow: 0 0 0 3px rgba(124,110,255,0.15);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 7px;
+    border: none; border-radius: 10px;
+    font-family: var(--font);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.15s, box-shadow 0.2s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: var(--logic);
+    color: #fff;
+    padding: 0.7rem 1.4rem;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-success {
+    background: var(--success);
+    color: #001a10;
+    padding: 0.7rem 1.4rem;
+  }
+  .btn-success:hover { opacity: 0.88; }
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.7rem 1.1rem;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
+
+  /* ── CATEGORIA BADGE ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 99px;
+  }
+  .badge.math { background: var(--math-dim); color: var(--math); }
+  .badge.logic { background: var(--logic-dim); color: var(--logic); }
+  .badge.seq { background: var(--seq-dim); color: var(--seq); }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ── QUESTION AREA ── */
+  .question-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .question-text {
+    font-size: clamp(1.1rem, 3vw, 1.4rem);
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+    min-height: 2.5em;
+    color: var(--text);
+  }
+
+  /* ── TIMER ── */
+  .timer-wrap {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .timer-ring {
+    position: relative; width: 42px; height: 42px;
+    flex-shrink: 0;
+  }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle.bg { fill: none; stroke: var(--border); stroke-width: 3; }
+  .timer-ring circle.fg {
+    fill: none; stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+  }
+  .timer-num {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--mono);
+    font-size: 0.8rem; font-weight: 600;
+  }
+
+  /* ── RESPOSTA ── */
+  .answer-row {
+    display: flex; gap: 10px;
+  }
+  .answer-row .input-wrap { flex: 1; }
+
+  /* ── FEEDBACK ── */
+  .feedback {
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1rem;
+    animation: slideIn 0.25s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .feedback.show { display: flex; }
+  .feedback.ok { background: rgba(0,229,160,0.12); color: var(--success); border: 1px solid rgba(0,229,160,0.25); }
+  .feedback.err { background: rgba(255,92,106,0.12); color: var(--error); border: 1px solid rgba(255,92,106,0.25); }
+  .feedback-icon { font-size: 1.3rem; }
+
+  /* ── SCORE FOOTER ── */
+  .score-strip {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+  }
+  .score-item { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .score-num { font-family: var(--mono); font-size: 1.1rem; font-weight: 600; color: var(--text); }
+  .score-item.ok .score-num { color: var(--success); }
+  .score-item.err .score-num { color: var(--error); }
+  .divider { width: 1px; height: 30px; background: var(--border); }
+
+  /* ── HINT ── */
+  .hint-text {
+    font-size: 0.8rem; color: var(--muted);
+    text-align: center; margin-top: 0.75rem;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .empty-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+
+  /* ── LEVEL UP TOAST ── */
+  .toast {
+    position: fixed; top: 1.5rem; right: 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--logic);
+    border-radius: 14px;
+    padding: 0.9rem 1.25rem;
+    color: var(--logic);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex; align-items: center; gap: 10px;
+    transform: translateX(120%);
+    transition: transform 0.35s cubic-bezier(.25,.8,.25,1);
+    z-index: 999;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(0); }
+
+  @media (max-width: 480px) {
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .stat-level { font-size: 1.2rem; }
+    .casa-row { flex-direction: column; }
+    .btn { width: 100%; }
+    .answer-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas-bg"></canvas>
+
+<div class="toast" id="toast">
+  <span style="font-size:1.4rem">⚡</span>
+  <span id="toast-msg">Subiu de nível!</span>
+</div>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <h1>Cognivia</h1>
+    </div>
+    <p class="tagline">Desafie sua mente · Evolua seu nível</p>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-cat math">Matemática</div>
+      <div class="stat-level" id="lv-mat">Nv. 1</div>
+      <div class="stat-pts" id="pts-mat">0 pts</div>
+      <div class="level-bar"><div class="level-fill math" id="bar-mat" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-cat logic">Lógica</div>
+      <div class="stat-level" id="lv-log">Nv. 1</div>
+      <div class="stat-pts" id="pts-log">0 pts</div>
+      <div class="level-bar"><div class="level-fill logic" id="bar-log" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-cat seq">Sequência</div>
+      <div class="stat-level" id="lv-seq">Nv. 1</div>
+      <div class="stat-pts" id="pts-seq">0 pts</div>
+      <div class="level-bar"><div class="level-fill seq" id="bar-seq" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- CASA PANEL -->
+  <div class="panel">
+    <div class="casa-row">
+      <div class="input-wrap">
+        <div class="input-label">Número da casa (0–20)</div>
+        <input type="number" id="entry-casa" min="0" max="299" placeholder="ex: 5" />
+      </div>
+      <div style="padding-top: 22px;">
+        <button class="btn btn-primary" id="btn-buscar" onclick="buscarPergunta()">
+          🎲 Buscar Desafio
+        </button>
+      </div>
+    </div>
+    <p class="hint-text"> Matemática ·  Lógica · Sequência</p>
+  </div>
+
+  <!-- QUESTION PANEL -->
+  <div class="panel" id="question-panel">
+    <div class="empty" id="empty-state">
+      <div class="empty-icon">🎯</div>
+      <div class="empty-title">Pronto para jogar?</div>
+      <p style="font-size:0.85rem">Escolha um número de casa e busque seu desafio!</p>
+    </div>
+
+    <div id="question-content" style="display:none">
+      <div class="question-header">
+        <span class="badge" id="cat-badge"><span class="badge-dot"></span><span id="cat-label">—</span></span>
+        <div class="timer-wrap">
+          <div class="timer-ring">
+            <svg width="42" height="42" viewBox="0 0 42 42">
+              <circle class="bg" cx="21" cy="21" r="18"/>
+              <circle class="fg" id="timer-arc" cx="21" cy="21" r="18"
+                stroke-dasharray="113" stroke-dashoffset="0" stroke="var(--logic)"/>
+            </svg>
+            <div class="timer-num" id="timer-num">30</div>
+          </div>
+          <span style="font-size:0.8rem; color:var(--muted)">seg</span>
+        </div>
+      </div>
+
+      <div class="question-text" id="question-text"></div>
+
+      <div class="answer-row">
+        <div class="input-wrap">
+          <div class="input-label">Sua resposta</div>
+          <input type="text" id="entry-resposta" placeholder="Digite aqui..." autocomplete="off" />
+        </div>
+        <div style="padding-top:22px;">
+          <button class="btn btn-success" onclick="verificar()">🚀 Enviar</button>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedback">
+        <span class="feedback-icon" id="fb-icon"></span>
+        <span id="fb-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORE STRIP -->
+  <div class="score-strip">
+    <div class="score-item ok">
+      <span>✅ Acertos</span>
+      <span class="score-num" id="total-acertos">0</span>
+    </div>
+    <div class="divider"></div>
+    <div class="score-item">
+      <span>🏆 Total de pontos</span>
+      <span class="score-num" id="total-pontos">0</span>
+    </div>
+    <div class="divider"></div>
+    <div class="score-item err">
+      <span>❌ Erros</span>
+      <span class="score-num" id="total-erros">0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DADOS ──────────────────────────────────────────────
+const desafios = {
+
+  matematica: {
+
+    1: [
+      { pergunta: "Quanto é 2 + 3?", resposta: "5" },
+      { pergunta: "Quanto é 5 + 7?", resposta: "12" },
+      { pergunta: "Complete a sequência: 2, 4, 6, 8, ___", resposta: "10" },
+      { pergunta: "Quanto é 9 - 4?", resposta: "5" },
+      { pergunta: "Quanto é 3 × 4?", resposta: "12" },
+      { pergunta: "Quanto é 8 + 6?", resposta: "14" },
+      { pergunta: "Quanto é 15 - 7?", resposta: "8" },
+      { pergunta: "Quanto é 7 × 2?", resposta: "14" },
+      { pergunta: "Quanto é 20 ÷ 4?", resposta: "5" },
+      { pergunta: "Quanto é 11 + 9?", resposta: "20" }
+    ],
+
+    2: [
+      { pergunta: "Quanto é 12 × 3?", resposta: "36" },
+      { pergunta: "Quanto é 50 ÷ 5?", resposta: "10" },
+      { pergunta: "Quanto é 7²?", resposta: "49" },
+      { pergunta: "Quanto é 15% de 200?", resposta: "30" },
+      { pergunta: "Quanto é 25 × 4?", resposta: "100" },
+      { pergunta: "Quanto é 144 ÷ 12?", resposta: "12" },
+      { pergunta: "Quanto é 13 × 5?", resposta: "65" },
+      { pergunta: "Quanto é 96 ÷ 8?", resposta: "12" },
+      { pergunta: "Quanto é 17 + 28?", resposta: "45" },
+      { pergunta: "Quanto é 81 ÷ 9?", resposta: "9" }
+    ],
+
+    3: [
+      { pergunta: "Qual a raiz quadrada de 144?", resposta: "12" },
+      { pergunta: "Quanto é 2³ × 3?", resposta: "24" },
+      { pergunta: "Resolva: (5 + 3) × 4 - 10", resposta: "22" },
+      { pergunta: "Quanto é 5² + 4²?", resposta: "41" },
+      { pergunta: "Quanto é 3³?", resposta: "27" },
+      { pergunta: "Quanto é 18 × 7?", resposta: "126" },
+      { pergunta: "Quanto é √225?", resposta: "15" },
+      { pergunta: "Quanto é 11²?", resposta: "121" },
+      { pergunta: "Quanto é 9³?", resposta: "729" },
+      { pergunta: "Quanto é 15²?", resposta: "225" }
+    ],
+
+    4: [
+      { pergunta: "Quantos primos há entre 1 e 20?", resposta: "8" },
+      { pergunta: "Quanto é log₁₀(1000)?", resposta: "3" },
+      { pergunta: "Quanto é 2⁶?", resposta: "64" },
+      { pergunta: "Quanto é √529?", resposta: "23" },
+      { pergunta: "Quanto é 17²?", resposta: "289" },
+      { pergunta: "Quanto é 12³?", resposta: "1728" },
+      { pergunta: "Quanto é 5⁴?", resposta: "625" },
+      { pergunta: "Quanto é √400?", resposta: "20" },
+      { pergunta: "Quanto é 19²?", resposta: "361" },
+      { pergunta: "Quanto é 7³?", resposta: "343" }
+    ]
+  },
+
+  logica: {
+
+    1: [
+      { pergunta: "Se João estuda e se esforça, João passa? (sim/nao)", resposta: "sim" },
+      { pergunta: "A negação de 'Está chovendo' é 'Não está chovendo'? (sim/nao)", resposta: "sim" },
+      { pergunta: "Todo A é B. Todo B é C. Todo A é C? (sim/nao)", resposta: "sim" },
+      { pergunta: "Cachorro é animal? (sim/nao)", resposta: "sim" },
+      { pergunta: "Peixe voa? (sim/nao)", resposta: "nao" },
+      { pergunta: "Um triângulo possui 3 lados? (sim/nao)", resposta: "sim" },
+      { pergunta: "2 é maior que 5? (sim/nao)", resposta: "nao" },
+      { pergunta: "Se hoje é domingo, amanhã pode ser segunda? (sim/nao)", resposta: "sim" },
+      { pergunta: "Todo gato é mamífero? (sim/nao)", resposta: "sim" },
+      { pergunta: "O Sol gira em torno da Terra? (sim/nao)", resposta: "nao" }
+    ],
+
+    2: [
+      { pergunta: "Todos os dragões voam. Draco é dragão. Draco voa? (sim/nao)", resposta: "sim" },
+      { pergunta: "P ∧ Q é verdadeiro se P=falso e Q=verdadeiro? (sim/nao)", resposta: "nao" },
+      { pergunta: "P ∨ Q é verdadeiro se P=falso e Q=verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "NOT verdadeiro = falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Verdadeiro AND Verdadeiro = Verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Falso OR Falso = Verdadeiro? (sim/nao)", resposta: "nao" },
+      { pergunta: "Se P é verdadeiro, P OR Q é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se P é falso, P AND Q é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "NOT falso = verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Falso AND Verdadeiro = Verdadeiro? (sim/nao)", resposta: "nao" }
+    ],
+
+    3: [
+      { pergunta: "¬(P ∧ Q) equivale a ¬P ∨ ¬Q? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se P → Q e Q → R, então P → R? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se todos os alunos estudam e João é aluno, João estuda? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A implica B e B é falso, A pode ser verdadeiro? (sim/nao)", resposta: "nao" },
+      { pergunta: "Se A implica B e A é verdadeiro, B é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se nenhum A é B e C é A, C é B? (sim/nao)", resposta: "nao" },
+      { pergunta: "Se A e B são verdadeiros, A OR B é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A AND B e A é falso, resultado é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se NOT A e A é verdadeiro, resultado é verdadeiro? (sim/nao)", resposta: "nao" },
+      { pergunta: "Todo quadrado é retângulo? (sim/nao)", resposta: "sim" }
+    ],
+
+    4: [
+      { pergunta: "A contrapositiva de 'Se chove, fica molhado' é 'Se não fica molhado, não chove'? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A ↔ B e A é verdadeiro, B é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A XOR B e ambos verdadeiros, o resultado é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A implica B e B implica A, existe equivalência? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A OR B e ambos falsos, o resultado é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A AND B e um é falso, o resultado é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A implica B e B é falso, A é falso? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se NOT A e A é falso, NOT A é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se P é falso, P → Q é verdadeiro? (sim/nao)", resposta: "sim" },
+      { pergunta: "Se A ↔ B e A é falso, B pode ser falso? (sim/nao)", resposta: "sim" }
+    ]
+  },
+
+  sequencia: {
+
+    1: [
+      { pergunta: "Continue: 2, 4, 8, 16, ___", resposta: "32" },
+      { pergunta: "Continue: 1, 1, 2, 3, 5, ___", resposta: "8" },
+      { pergunta: "Continue: 5, 10, 15, 20, ___", resposta: "25" },
+      { pergunta: "Continue: 1, 2, 3, 4, ___", resposta: "5" },
+      { pergunta: "Continue: 10, 20, 30, ___", resposta: "40" },
+      { pergunta: "Continue: 3, 6, 9, ___", resposta: "12" },
+      { pergunta: "Continue: 4, 8, 12, ___", resposta: "16" },
+      { pergunta: "Continue: 7, 14, 21, ___", resposta: "28" },
+      { pergunta: "Continue: 1, 3, 5, ___", resposta: "7" },
+      { pergunta: "Continue: 6, 12, 18, ___", resposta: "24" }
+    ],
+
+    2: [
+      { pergunta: "Continue: 3, 6, 12, 24, ___", resposta: "48" },
+      { pergunta: "Continue: 1, 4, 9, 16, ___", resposta: "25" },
+      { pergunta: "Continue: 100, 90, 81, 73, ___", resposta: "66" },
+      { pergunta: "Continue: 2, 3, 5, 8, 13, ___", resposta: "21" },
+      { pergunta: "Continue: 3, 9, 27, ___", resposta: "81" },
+      { pergunta: "Continue: 5, 10, 20, 40, ___", resposta: "80" },
+      { pergunta: "Continue: 4, 7, 11, 16, ___", resposta: "22" },
+      { pergunta: "Continue: 1, 8, 27, 64, ___", resposta: "125" },
+      { pergunta: "Continue: 2, 6, 12, 20, ___", resposta: "30" },
+      { pergunta: "Continue: 10, 9, 7, 4, ___", resposta: "0" }
+    ],
+
+    3: [
+      { pergunta: "Continue: 1, 8, 27, 64, ___", resposta: "125" },
+      { pergunta: "Continue: 2, 3, 5, 7, 11, ___", resposta: "13" },
+      { pergunta: "Continue: 1, 2, 4, 7, 11, ___", resposta: "16" },
+      { pergunta: "Continue: 5, 11, 19, 29, ___", resposta: "41" },
+      { pergunta: "Continue: 1, 3, 6, 10, 15, ___", resposta: "21" },
+      { pergunta: "Continue: 7, 15, 31, 63, ___", resposta: "127" },
+      { pergunta: "Continue: 4, 9, 16, 25, ___", resposta: "36" },
+      { pergunta: "Continue: 2, 12, 30, 56, ___", resposta: "90" },
+      { pergunta: "Continue: 10, 20, 35, 55, ___", resposta: "80" },
+      { pergunta: "Continue: 3, 10, 21, 36, ___", resposta: "55" }
+    ],
+
+    4: [
+      { pergunta: "Continue: 1, 3, 7, 15, 31, ___", resposta: "63" },
+      { pergunta: "Continue: 0, 1, 3, 6, 10, ___", resposta: "15" },
+      { pergunta: "Continue: 2, 6, 18, 54, ___", resposta: "162" },
+      { pergunta: "Continue: 1, 2, 6, 24, 120, ___", resposta: "720" },
+      { pergunta: "Continue: 1, 4, 10, 22, 46, ___", resposta: "94" },
+      { pergunta: "Continue: 3, 7, 15, 31, ___", resposta: "63" },
+      { pergunta: "Continue: 5, 10, 17, 26, 37, ___", resposta: "50" },
+      { pergunta: "Continue: 1, 5, 14, 30, 55, ___", resposta: "91" },
+      { pergunta: "Continue: 2, 9, 28, 65, ___", resposta: "126" },
+      { pergunta: "Continue: 3, 12, 39, 120, ___", resposta: "363" }
+    ]
+  }
+
+};
+// ── ESTADO ─────────────────────────────────────────────
+const jogador = {
+  acertos: 0, erros: 0,
+  pontos: { matematica: 0, logica: 0, sequencia: 0 },
+  nivel: { matematica: 1, logica: 1, sequencia: 1 },
+  tempoInicio: 0
+};
+
+let desafioAtual = null;
+let categoriaAtual = null;
+let timerInterval = null;
+let segundosRestantes = 30;
+
+// ── LÓGICA ─────────────────────────────────────────────
+function descobrirCategoria(casa) {
+
+    const resto = casa % 3;
+
+    if (resto === 1)
+        return "matematica";
+
+    else if (resto === 2)
+        return "logica";
+
+    else
+        return "sequencia";
+}
+
+const desafiosUsados = {
+    matematica: {1: [], 2: [], 3: [], 4: []},
+    logica: {1: [], 2: [], 3: [], 4: []},
+    sequencia: {1: [], 2: [], 3: [], 4: []}
+};
+
+function obterDesafio(cat, nivel) {
+
+    const nivelCat = desafios[cat];
+
+    const nv = nivelCat[nivel]
+        ? nivel
+        : Math.max(...Object.keys(nivelCat).map(Number));
+
+    const pool = nivelCat[nv];
+
+    const usados = desafiosUsados[cat][nv];
+
+    if (usados.length === pool.length) {
+
+        usados.length = 0;
+
+    }
+
+    const disponiveis = pool.filter(
+        p => !usados.includes(p)
+    );
+
+    const desafio =
+        disponiveis[Math.floor(Math.random() * disponiveis.length)];
+
+    usados.push(desafio);
+
+    return desafio;
+}
+function calcularBonusTempo(seg) {
+  if (seg > 20) return 5;
+  if (seg > 15) return 3;
+  if (seg > 5) return 1;
+  return 0;
+}
+
+function atualizarNivel(cat) {
+  const p = jogador.pontos[cat];
+  const antes = jogador.nivel[cat];
+  if (p < 30) jogador.nivel[cat] = 1;
+  else if (p < 70) jogador.nivel[cat] = 2;
+  else if (p < 120) jogador.nivel[cat] = 3;
+  else jogador.nivel[cat] = 4;
+  if (jogador.nivel[cat] > antes) mostrarToast(`⚡ Subiu para Nível ${jogador.nivel[cat]} em ${cat}!`);
+}
+
+// ── TIMER ──────────────────────────────────────────────
+const CIRCUM = 2 * Math.PI * 18; // r=18
+
+function iniciarTimer() {
+  clearInterval(timerInterval);
+  segundosRestantes = 30;
+  atualizarTimerUI();
+  timerInterval = setInterval(() => {
+    segundosRestantes--;
+    atualizarTimerUI();
+    if (segundosRestantes <= 0) { clearInterval(timerInterval); tempoEsgotado(); }
+  }, 1000);
+}
+
+function atualizarTimerUI() {
+  const num = document.getElementById('timer-num');
+  const arc = document.getElementById('timer-arc');
+  const progresso = segundosRestantes / 30;
+  num.textContent = segundosRestantes;
+  arc.style.strokeDashoffset = CIRCUM * (1 - progresso);
+  const cor = segundosRestantes > 15 ? 'var(--logic)' : segundosRestantes > 7 ? 'var(--seq)' : 'var(--error)';
+  arc.style.stroke = cor;
+  num.style.color = cor;
+}
+
+function pararTimer() { clearInterval(timerInterval); }
+
+function tempoEsgotado() {
+  mostrarFeedback(false, `⏰ Tempo esgotado! Resposta: ${desafioAtual.resposta}`);
+  jogador.erros++;
+  jogador.pontos[categoriaAtual] = Math.max(0, jogador.pontos[categoriaAtual] - 7);
+  atualizarNivel(categoriaAtual);
+  renderUI();
+}
+
+// ── AÇÕES ──────────────────────────────────────────────
+function buscarPergunta() {
+  const val = parseInt(document.getElementById('entry-casa').value);
+  if (isNaN(val) || val < 1 || val > 20) {
+
+    alert("Digite um número de casa entre 1 e 20!");
+
+    document.getElementById('entry-casa').focus();
+
+    document.getElementById('entry-casa').style.borderColor = 'var(--error)';
+
+    setTimeout(() => {
+        document.getElementById('entry-casa').style.borderColor = '';
+    }, 1200);
+
+    return;
+}
+  categoriaAtual = descobrirCategoria(val);
+  desafioAtual = obterDesafio(categoriaAtual, jogador.nivel[categoriaAtual]);
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('question-content').style.display = 'block';
+
+  const catMap = { matematica: 'math', logica: 'logic', sequencia: 'seq' };
+  const catLabel = { matematica: 'Matemática', logica: 'Lógica', sequencia: 'Sequência' };
+  const badge = document.getElementById('cat-badge');
+  badge.className = 'badge ' + catMap[categoriaAtual];
+  document.getElementById('cat-label').textContent = `${catLabel[categoriaAtual]} · Nível ${jogador.nivel[categoriaAtual]}`;
+
+  document.getElementById('question-text').textContent = desafioAtual.pergunta;
+  document.getElementById('entry-resposta').value = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('entry-resposta').focus();
+
+  jogador.tempoInicio = Date.now();
+  iniciarTimer();
+}
+
+function verificar() {
+  if (!desafioAtual) return;
+
+  pararTimer();
+
+  const resp = normalizar(
+    document.getElementById('entry-resposta').value
+  );
+
+  const certa = normalizar(
+    desafioAtual.resposta
+  );
+
+  const bonus = calcularBonusTempo(segundosRestantes);
+
+  if (resp === certa) {
+    jogador.acertos++;
+
+    const pts = 10 + bonus;
+
+    jogador.pontos[categoriaAtual] += pts;
+
+    mostrarFeedback(
+      true,
+      `Correto! +${pts} pontos${
+        bonus > 0 ? ` (bônus velocidade: +${bonus})` : ""
+      }`
+    );
+
+  } else {
+
+    jogador.erros++;
+
+    jogador.pontos[categoriaAtual] =
+      Math.max(0, jogador.pontos[categoriaAtual] - 7);
+
+    mostrarFeedback(
+      false,
+      `Incorreto. A resposta era: ${desafioAtual.resposta}`
+    );
+  }
+
+  atualizarNivel(categoriaAtual);
+  renderUI();
+}
+
+function normalizar(texto) {
+  return texto
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+// ── UI ─────────────────────────────────────────────────
+function mostrarFeedback(ok, msg) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show ' + (ok ? 'ok' : 'err');
+  document.getElementById('fb-icon').textContent = ok ? '🔥' : '❌';
+  document.getElementById('fb-msg').textContent = msg;
+}
+
+function renderUI() {
+  const cats = ['matematica', 'logica', 'sequencia'];
+  const ids = ['mat', 'log', 'seq'];
+  const thresholds = [0, 30, 70, 120, 9999];
+
+  cats.forEach((cat, i) => {
+    const lv = jogador.nivel[cat];
+    const pts = jogador.pontos[cat];
+    document.getElementById(`lv-${ids[i]}`).textContent = `Nv. ${lv}`;
+    document.getElementById(`pts-${ids[i]}`).textContent = `${pts} pts`;
+    const min = thresholds[lv - 1] || 0;
+    const max = thresholds[lv] || 120;
+    const pct = Math.min(100, Math.round(((pts - min) / (max - min)) * 100));
+    document.getElementById(`bar-${ids[i]}`).style.width = pct + '%';
+  });
+
+  document.getElementById('total-acertos').textContent = jogador.acertos;
+  document.getElementById('total-erros').textContent = jogador.erros;
+  const total = Object.values(jogador.pontos).reduce((a, b) => a + b, 0);
+  document.getElementById('total-pontos').textContent = total;
+}
+
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── ENTER key ──────────────────────────────────────────
+document.getElementById('entry-resposta').addEventListener('keydown', e => {
+  if (e.key === 'Enter') verificar();
+});
+document.getElementById('entry-casa').addEventListener('keydown', e => {
+  if (e.key === 'Enter') buscarPergunta();
+});
+
+// ── PARTICLES ──────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('canvas-bg');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = ['#00e5c4', '#7c6eff', '#ffb347'];
+  for (let i = 0; i < 55; i++) {
+    particles.push({
+      x: Math.random() * 1000,
+      y: Math.random() * 1000,
+      r: Math.random() * 1.5 + 0.5,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      c: COLORS[Math.floor(Math.random() * COLORS.length)]
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.c;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+renderUI();
+</script>
+</body>
+</html>
